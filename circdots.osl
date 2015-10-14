@@ -1,0 +1,294 @@
+/*
+ * Copyright 2015, Blender Foundation.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+
+/* 
+ * OSL Shader for circular arranged dots - inspired by Aborigines dotpainting art
+ * Algorithm and code by Sylvio Sell - maitag.de - Rostock Germany 2015
+ * More information: https://github.com/maitag/blender-osl-shader
+ */
+
+float circdots_intensity (
+    point p,
+    float _dot_size,
+    float _hole_size,
+    float delta_dr,
+    float dot_soft,
+    float hole_soft,
+    float g0,
+    float d,
+    float delta_d,
+    float a,
+    float delta_a,
+    float rotation_offset,
+    float _pit_form,
+    float pit_size1,
+    float pit_size2,
+    int ol_type,
+    int delta_circle,
+    int delta_angle,
+    output float circle_number,
+    output float angle )
+{
+    // -----------------------------
+    float pit_form = _pit_form;
+
+    float x = p[0];
+    float y = p[1];
+    float k;
+    float g;
+    float n;  // circle number (starts with 0.0 at g0)
+    float dot_size;
+    float hole_size;
+    float aw; // angle diff of circle-part
+    float gw; // angle for unit-circle (from 0,0 zu x,y)
+    float rotation;
+    float xk,yk; // coordinates neares point at nearest circle
+    float ab;    // distance between these two points
+    float x_pit;
+    float intensity = 0.0;
+
+    // distance to center point (0,0)
+    g = sqrt(x*x+y*y);
+    
+    // nearest circle to g(n) ... n= 0,1,2...
+    if (delta_d == 0.0) {
+        n = round((abs(g-g0))/d);
+    }
+    else {
+        if (delta_d < 0.0) {
+            n = -d/(2.0*delta_d) - sqrt( (d*d)/(4.0*delta_d*delta_d) + abs(g-g0)/delta_d  );
+        }
+        else {
+            n = -d/(2.0*delta_d) + sqrt( (d*d)/(4.0*delta_d*delta_d) + abs(g-g0)/delta_d  );
+        }
+    }
+
+    // -----------------------------------------------------------
+    n=round(n);
+
+    // overlapp nearly dots
+    if (n+delta_circle >= 0.0) {
+        n=n+delta_circle;
+        circle_number = (int) n;
+    }
+    else {
+        circle_number = -1;
+        return(0.0);
+    }
+
+    // calculate circle with rounded n
+    k = g0+n*d+n*n*delta_d;
+
+    // grow or shrink dot-size
+    dot_size = abs(_dot_size+delta_dr*n);
+    
+    // hole_size percentage of dot_size
+    hole_size = _hole_size*dot_size;
+
+    // calc circumference part
+    a = M_2PI*a*0.2;
+    
+    // grow or shrink dot-distance (at same circle)
+    //a=a+delta_a*dot_size*n/2;
+    a = a+2.0*delta_a*n;
+
+    // avoid division by zero
+    if (a == 0.0) {
+        aw = 360.0;
+    }
+    else {
+        aw = 360.0/round(M_2PI*k/a);
+        // overlap typ1 neighboar dots (at same circle)
+        if (ol_type == 1) {
+            aw = aw+aw*delta_angle;
+        }
+    }
+    
+    if (g == 0.0) {
+        gw = 0.0;
+    }
+    else {
+        if (x>=0.0 && y>=0.0) {
+            gw = asin(y/g)*180.0/M_PI;        // 1.quadrant
+        }
+        else if (x<0.0 && y>=0.0) {
+            gw = 180.0-asin(y/g)*180.0/M_PI;  // 2.quadrant
+        }
+        else if (x<0 && y<0) {
+            gw = 180.0+asin(-y/g)*180.0/M_PI; // 3.quadrant
+        }
+        else {
+            gw = 360.0-asin(-y/g)*180.0/M_PI; // 4.quadrant
+        }
+    }
+
+    // calc rotation
+    rotation = n*rotation_offset;
+
+    angle = aw*round((gw-rotation)/aw)+rotation;
+    
+    // overlap typ2 neighboar dots (at same circle)
+    if (ol_type > 1) {
+        angle = aw*( round((gw-rotation)/aw)+delta_angle )+rotation;
+    }
+
+    angle = angle*M_PI/180.0; // back to radians for sin und cos
+    xk = k*cos(angle);
+    yk = k*sin(angle);
+
+    ab = sqrt((xk-x)*(xk-x)+(yk-y)*(yk-y));
+
+    // -----------------------------------------------------------
+    // make a fruit like pit ;)
+    if (pit_form != 0.0 || pit_size1 != 0.0) {
+        x_pit = acos((k*k+ab*ab-g*g)/(2.0*k*ab))/M_PI;
+        // transform x_pit from 0 to 1 to -1 to 0:
+        if (pit_form < 0.0) {
+            // reverse pit_form
+            x_pit = x_pit-1.0;
+        }
+        else {
+            x_pit = 0.0-x_pit;
+        }
+        // x_pit = -pow(-x_pit,1.6);
+        pit_form = 0.4*abs(pit_form)*(6.0*x_pit+12.0*x_pit*x_pit+6.0*x_pit*x_pit*x_pit)+1.0;
+
+        // make smaller
+        if (pit_size1 != 0.0) {
+            pit_form = pit_form*(-1.0*(pit_size2+4.0)/5.0*pit_size1*(pow(sin(sin(sin(sin(M_PI*(1.0+x_pit))))),pit_size2))+1.0);
+        }
+        dot_size = dot_size*pit_form;
+        hole_size = hole_size*pit_form;
+  }
+
+  // -----------------------------------------------------------
+
+    if (ab <= dot_size) {
+        // first let sum of both soft-values <=100 !
+        if (dot_soft+hole_soft > 100.0) {
+            dot_soft = dot_soft -((dot_soft+hole_soft-100.0)/2.0);
+            hole_soft = 100.0-dot_soft;
+        }
+        // dot_softnes outside
+        if (ab > dot_size-(dot_size-hole_size)*dot_soft/100.0) {
+            intensity = sin((M_PI*50.0*(dot_size-ab))/((dot_size-hole_size)*dot_soft));
+        }
+        else {
+            intensity = 1.0;
+        }
+        // hole_softnes inside dot
+        if (ab >= hole_size) {
+            if (ab < hole_size+(dot_size-hole_size)*hole_soft/100.0) {
+                intensity = sin((M_PI*50.0*(ab-hole_size))/((dot_size-hole_size)*hole_soft));
+            }
+        }
+        else {
+            intensity = 0.0;
+        }
+    }
+    else { // not inside dot
+        intensity = 0.0;
+    }
+
+    return(intensity);
+}
+
+// ----------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------
+
+shader node_circdots (
+    float circ_size = 0.2, // inner circle size
+    float circ_dist = 0.4, // distance between circles
+
+    float dot_size = 1.0,  // dot size
+    float dot_dist = 0.5,  // distance between neighbour dots on same circle
+
+    int overlap1 = 0,      // overlaps neighbour dots
+    int overlap2 = 0,      // overlaps neighbour dots
+
+    float dot_soft = 0.3,  // dot goes soft on outer border
+    float hole_size = 0.0, // size of hole inside dots
+    float hole_soft = 0.0, // dot goes soft from inside 
+    
+	float rotation_offset = 0.0, // rotation offset relative to center
+
+    float rel_circ_dist = 0.0,// distance-factor between circles, relative to circle-radius
+    float rel_dot_dist = 0.0, // distance-factor between dots on same circle, relative to circle-radius
+    float rel_dot_size = 0.0, // dots size-factor, relative to circle-radius
+
+	float pit_form = 0.0,    // dot form (like pit of fruits)
+	float pit_size1  = 0.0,  // form factor 1
+	float pit_size2  = 1.0,  // form factor 2
+
+	float scale = 1.00,
+
+   	point position = P,
+	output float intensity = 0.0,
+	output float circle_number = 0.0,
+	output float dot_angle = 0.0 )
+{
+    // -----------------------------
+	float get_intensity = 0.0;
+	float get_circle_number = 0.0;
+	float get_angle = 0.0;
+	
+	int i,j;
+    float max_hit_dots = 0.0;
+
+	for (i = -max(0,overlap1); i <= max(0,overlap1); i++)
+	{
+		for (j = -max(0,overlap2); j <= max(0,overlap2); j++)
+		{
+			get_intensity = circdots_intensity(
+                position*scale,
+                dot_size / 10.0,
+                min(0.9999,hole_size),
+                rel_dot_size / 100.0,
+                dot_soft  * 100.0,
+			    hole_soft * 100.0,
+                circ_size,
+                circ_dist,
+                rel_circ_dist / 100.0,
+                dot_dist / 3.14,
+                rel_dot_dist / 100.0,
+                rotation_offset,
+                pit_form,
+                pit_size1,
+                pit_size2,
+			    2, j, i,
+                get_circle_number,
+                get_angle);
+                
+			if (get_intensity > 0.0) {
+    			if (get_intensity>intensity) intensity = get_intensity;
+    			max_hit_dots = max_hit_dots+get_intensity;
+				circle_number += get_circle_number * get_intensity;
+                dot_angle += get_angle * get_intensity;
+			}
+		}
+	}
+
+    if (max_hit_dots > 0) {
+        circle_number = circle_number / max_hit_dots;
+        dot_angle = dot_angle / max_hit_dots;
+    }
+    
+	circle_number=circle_number+1.0;
+	dot_angle=dot_angle/M_PI/2.0;
+}
