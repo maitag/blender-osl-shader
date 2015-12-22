@@ -19,8 +19,9 @@
 /* 
  * Lyapunov Shader - in memory of great mathematician Aleksandr Mikhailovich Lyapunov
  * Original code: Sylvio Sell - maitag.de - Rostock Germany 2013
+ * recoded 2015 for better node integration and artists control
  * devel task: https://developer.blender.org/T32305
- * OSL port by Thomas Dinges
+ * thanks to Thomas Dinges for initial OSL port
  */
 
 /* describes dynamic system */ 
@@ -33,7 +34,7 @@ float deriv(float x, float abc, float p1, float p2)
     return 2.0*p1*sin(x+abc)*cos(x+abc);
 }
 
-/* sequence */
+/* sequence (todo: customizing by parameter;) */
 void pre_step(output float x, point p, float p1, float p2)
 {
     for(int i = 0; i < 3; i++) {
@@ -47,7 +48,7 @@ void main_step(output float index, output int iter, output float x, point p, flo
         //index += log(fabs(deriv(x,p[i],p1,p2)));
         //index += deriv(x,p[i],p1,p2);
         
-        // my experiment:
+        // for better artist control:
         index += (  log(fabs(deriv(x,p[i],p1,p2)))*balance + deriv(x,p[i],p1,p2)*(1.0-balance)  ) / 2.0;
         
         iter++;
@@ -63,7 +64,6 @@ float lyapunov(point p, float x_start, float iteration_pre, float iteration_main
 	float nabla_pre = iteration_pre - (float)iter_pre;
 	float nabla_main = iteration_main - (float)iter_main;
 
-	//float x = 0.0;
 	float index = 0.0;
 	float ableitung = 0.0;
 	int iter = 0;
@@ -96,7 +96,6 @@ float lyapunov(point p, float x_start, float iteration_pre, float iteration_main
 		index = index*nabla_main + index_pre*(1.0-nabla_main);
 	}
 
-	//return index;
 	return index;
 }
 
@@ -127,7 +126,6 @@ shader node_lyapunov(
 	}
 
     Fac = 0.5 + index; 
-    
 
 }
 
