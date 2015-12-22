@@ -1,2 +1,3 @@
-# blender-osl-shader
-procedural textures for blender (open shading language)
+## blender-osl-shader
+( install blender first: ... )
+try out: ...
