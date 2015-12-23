@@ -32,9 +32,9 @@ float func(float x, float p, float p1, float p2)
 {
     return p1*sin(x+p)*sin(x+p)+p2;
 }
-float deriv(float x, float abc, float p1, float p2)
+float deriv(float x, float p, float p1, float p2)
 {
-    return 2.0*p1*sin(x+abc)*cos(x+abc);
+    return p1*sin(2.0*(x+p));
 }
 
 
