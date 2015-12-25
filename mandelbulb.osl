@@ -23,14 +23,14 @@
 
 float mandelbulb_intensity (
     point p,
-    int max_iter,  // max number of iterations
-    float max_pow, // max power
-    float n        // power
+    float max_iter, // max number of iterations
+    float max_pow,  // max power
+    float n         // power
    )
 {
     // -----------------------------
     int iter = 0;
-    
+	
 	float r, theta, phi;	
 	float tmp_pow_r_n, tmp_sin_theta_n;
 
@@ -58,8 +58,8 @@ float mandelbulb_intensity (
 
 		iter++;
 	}
-    
-    return(iter);
+
+	return( iter / max_iter );
 }
 
 // ----------------------------------------------------------------------------------------------
@@ -67,7 +67,7 @@ float mandelbulb_intensity (
 // ----------------------------------------------------------------------------------------------
 
 shader node_mandelbulb (
-	int iterations = 12, // number of iterations
+	float iterations = 12.0, // number of iterations
 	float power = 2.0,   // max power
 	float symmetry = 3.0,    // power
 	
@@ -78,5 +78,5 @@ shader node_mandelbulb (
 {
     // -----------------------------
 
-    intensity = mandelbulb_intensity( position*scale, iterations, power, symmetry ) / iterations;
+    intensity = mandelbulb_intensity( position*scale, iterations, power, symmetry );
 }
