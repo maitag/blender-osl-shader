@@ -123,17 +123,11 @@ float circdots_intensity (
         gw = 0.0;
     }
     else {
-        if (x>=0.0 && y>=0.0) {
-            gw = asin(y/g)*180.0/M_PI;        // 1.quadrant
-        }
-        else if (x<0.0 && y>=0.0) {
-            gw = 180.0-asin(y/g)*180.0/M_PI;  // 2.quadrant
-        }
-        else if (x<0 && y<0) {
-            gw = 180.0+asin(-y/g)*180.0/M_PI; // 3.quadrant
+        if (y>=0.0) {
+            gw = acos(x/g)*180.0/M_PI;
         }
         else {
-            gw = 360.0-asin(-y/g)*180.0/M_PI; // 4.quadrant
+            gw = -acos(x/g)*180.0/M_PI;
         }
     }
 
